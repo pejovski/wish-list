@@ -1,0 +1,109 @@
+consumes:
+  - application/json
+produces:
+  - application/json
+swagger: '2.0'
+info:
+  description: 'Wish List'
+  title: Wish List
+  version: 1.0.0
+tags:
+  - name: "wish"
+    description: "Wish List"
+basePath: /
+paths:
+  '/wish-list/{user_id}':
+    get:
+      tags:
+        - "wish"
+      summary: Get user's wish list
+      operationId: wish-list-get
+      parameters:
+        - name: user_id
+          type: string
+          description: user id
+          in: path
+          required: true
+      responses:
+        '200':
+          $ref: '#/responses/items'
+        '500':
+          description: Internal Server Error
+    post:
+      tags:
+        - "wish"
+      summary: Add product to user's wish list
+      operationId: wish-list-post
+      parameters:
+        - name: user_id
+          type: string
+          description: user id
+          in: path
+          required: true
+        - name: product
+          description: product
+          in: body
+          required: true
+          schema:
+            type: object
+            properties:
+              product_id:
+                type: string
+      responses:
+        '202':
+          description: Accepted
+        '400':
+          description: Bad Request
+        '405':
+          description: Method not allowed
+        '500':
+          description: Internal Server Error
+  '/wish-list/{user_id}/{product_id}':
+    delete:
+      tags:
+        - "wish"
+      summary: Delete product from user's list
+      operationId: wish-list-item-delete
+      parameters:
+        - name: user_id
+          type: string
+          description: user id
+          in: path
+          required: true
+        - name: product_id
+          type: string
+          description: user id
+          in: path
+          required: true
+      responses:
+        '204':
+          description: No Content
+        '500':
+          description: Internal Server Error
+responses:
+  item:
+    description: Ok
+    schema:
+      $ref: '#/definitions/Item'
+  items:
+    description: Ok
+    schema:
+      type: array
+      items:
+        $ref: '#/definitions/Item'
+definitions:
+  Item:
+    type: object
+    properties:
+      product_id:
+        type: string
+      name:
+        type: string
+      brand:
+        type: string
+      price:
+        type: number
+      image:
+        type: string
+      active:
+        type: boolean
