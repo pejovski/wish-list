@@ -17,11 +17,6 @@ Use [go mod](https://blog.golang.org/using-go-modules) to install dependencies.
 go mod tidy
 ```
 
-### Swagger
-- use http://editor.swagger.io
-- modify app/swagger/swagger.yaml
-- run: statik -src=./app/swagger -dest=./app
-
 ### Dependency 
 - Event Bus - RabbitMQ [Common](https://github.com/pejovski/common)
 - Catalog API - [Catalog](https://github.com/pejovski/catalog)
@@ -35,6 +30,11 @@ go run main.go
 ```
 - open [Wish List API](http://localhost:8203)
 - play!
+
+## Swagger update
+- use http://editor.swagger.io
+- modify app/swagger/swagger.yaml
+- run: statik -src=./app/swagger -dest=./app
 
 # Architecture and Design
 
