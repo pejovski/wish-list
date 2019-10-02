@@ -5,8 +5,7 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
-    container:
-      image: golang:latest
     steps:
       - name: Test
+        uses: docker://golang:latest
         run: go test ./... -race
