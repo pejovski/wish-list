@@ -56,9 +56,9 @@ func (h Handler) ProductDeleted(d *amqp.Delivery) {
 		return
 	}
 
-	err = h.controller.DeactivateProduct(msg.Id)
+	err = h.controller.DeleteProduct(msg.Id)
 	if err != nil {
-		logrus.Errorln("Failed to update product", err)
+		logrus.Errorln("Failed to delete product", err)
 		h.reject(d)
 		return
 	}

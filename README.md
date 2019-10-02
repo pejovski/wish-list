@@ -17,22 +17,24 @@ Use [go mod](https://blog.golang.org/using-go-modules) to install dependencies.
 go mod tidy
 ```
 
-Run [docker-compose](https://docs.docker.com/compose/) to build docker images and run necessary containers.
-
-```bash
-docker-compose up -d
-```
-
 ### Swagger
 - use http://editor.swagger.io
 - modify app/swagger/swagger.yaml
 - run: statik -src=./app/swagger -dest=./app
 
-### Usage
+### Dependency 
+- Event Bus - RabbitMQ [Common](https://github.com/pejovski/common)
+- Catalog API - [Catalog](https://github.com/pejovski/catalog)
 
+### Usage
+- Make sure the shared RabbitMQ container is up and running [Common](https://github.com/pejovski/common)
+- Make sure [Catalog API](http://localhost:8201) is active from [Catalog](https://github.com/pejovski/catalog)
 ```bash
-go run main.go -race
+docker-compose up -d
+go run main.go
 ```
+- open [Wish List API](http://localhost:8203)
+- play!
 
 # Architecture and Design
 
