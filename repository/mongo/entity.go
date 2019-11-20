@@ -1,4 +1,4 @@
-package repository
+package mongo
 
 type Item struct {
 	ProductId string  `bson:"product_id"`

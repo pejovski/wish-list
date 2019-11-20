@@ -1,52 +1,63 @@
-package http
+package api
 
 import (
 	"github.com/gorilla/mux"
 	_ "github.com/pejovski/wish-list/app/statik"
+	"github.com/pejovski/wish-list/controller"
 	"github.com/rakyll/statik/fs"
 	"github.com/sirupsen/logrus"
 	"net/http"
 )
 
-type Router struct {
-	router  *mux.Router
-	handler *Handler
+type Router interface {
+	routes()
+	swagger()
+	health()
+
+	ServeHTTP(w http.ResponseWriter, r *http.Request)
 }
 
-func NewRouter(h *Handler) *Router {
-	s := &Router{
+type router struct {
+	router  *mux.Router
+	handler Handler
+}
+
+func newRouter(c controller.Controller) Router {
+	s := &router{
 		router:  mux.NewRouter(),
-		handler: h,
+		handler: newHandler(c),
 	}
-	s.routes()
-	s.swagger()
+
 	s.health()
+	s.swagger()
+	s.routes()
 
 	return s
 }
 
-func (rtr *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (rtr *router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rtr.router.ServeHTTP(w, r)
 }
 
-func (rtr Router) routes() {
+func (rtr *router) routes() {
 	rtr.router.HandleFunc("/wish-list/{user_id}", rtr.handler.GetList()).Methods("GET")
 	rtr.router.HandleFunc("/wish-list/{user_id}", rtr.handler.AddItem()).Methods("POST")
 	rtr.router.HandleFunc("/wish-list/{user_id}/{product_id}", rtr.handler.RemoveItem()).Methods("DELETE")
 }
 
-func (rtr Router) swagger() {
+func (rtr *router) swagger() {
 	// swagger handler
 	statikFS, err := fs.New()
 	if err != nil {
 		logrus.Fatalf("%s: %s", "Failed to find statik", err)
 	}
 	sh := http.FileServer(statikFS)
+
 	rtr.router.Handle("/", sh).Methods("GET")
 	rtr.router.PathPrefix("/swagger").Handler(sh)
 }
 
-func (rtr Router) health() {
+func (rtr *router) health() {
 	rtr.router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("Up"))

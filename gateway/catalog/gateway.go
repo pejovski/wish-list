@@ -4,22 +4,26 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/hashicorp/go-retryablehttp"
-	"github.com/pejovski/wish-list/domain"
+	"github.com/pejovski/wish-list/model"
 	"github.com/sirupsen/logrus"
 	"net/http"
 	"strconv"
 )
 
-type Gateway struct {
+type Gateway interface {
+	Product(id string) (*model.Product, error)
+}
+
+type gateway struct {
 	client *retryablehttp.Client
 	host   string
 }
 
 func NewGateway(c *retryablehttp.Client, host string) Gateway {
-	return Gateway{client: c, host: host}
+	return gateway{client: c, host: host}
 }
 
-func (g Gateway) Product(id string) (*domain.Product, error) {
+func (g gateway) Product(id string) (*model.Product, error) {
 
 	url := g.host + fmt.Sprintf("/products/%s", id)
 

@@ -1,23 +1,39 @@
 package controller
 
 import (
-	"github.com/pejovski/wish-list/domain"
+	"github.com/pejovski/wish-list/gateway/catalog"
+	"github.com/pejovski/wish-list/repository"
+
+	myerr "github.com/pejovski/wish-list/error"
+	"github.com/pejovski/wish-list/model"
 	"github.com/sirupsen/logrus"
 )
 
-type Wish struct {
-	wishRepository domain.WishRepository
-	productGateway domain.CatalogGateway
+type Controller interface {
+	UpdateProduct(productId string) error
+	DeactivateProduct(productId string) error
+	DeleteProduct(productId string) error
+	UpdateProductPrice(productId string, price float32) error
+
+	AddItem(userId string, productId string) error
+	RemoveItem(userId string, productId string) error
+
+	GetList(userId string) (model.List, error)
 }
 
-func NewWish(r domain.WishRepository, g domain.CatalogGateway) Wish {
-	return Wish{wishRepository: r, productGateway: g}
+type controller struct {
+	repository     repository.Repository
+	productGateway catalog.Gateway
 }
 
-func (c Wish) AddItem(userId string, productId string) error {
+func New(r repository.Repository, g catalog.Gateway) Controller {
+	return controller{repository: r, productGateway: g}
+}
+
+func (c controller) AddItem(userId string, productId string) error {
 
 	// get item from repo
-	item, err := c.wishRepository.Item(userId, productId)
+	item, err := c.repository.Item(userId, productId)
 	if err != nil {
 		logrus.Errorf("GetItem failed for product %s, user %s Error: %s", productId, userId, err)
 		return err
@@ -25,12 +41,12 @@ func (c Wish) AddItem(userId string, productId string) error {
 
 	// check if item exist from repo
 	if item != nil {
-		logrus.Errorf("Item exist failure for product %s, user %s Error: %s", productId, userId, domain.ErrItemAlreadyExist)
-		return domain.ErrItemAlreadyExist
+		logrus.Errorf("Item exist failure for product %s, user %s Error: %s", productId, userId, myerr.ErrItemAlreadyExist)
+		return myerr.ErrItemAlreadyExist
 	}
 
 	// item doesn't exist so create a new one
-	err = c.wishRepository.CreateItem(userId, productId)
+	err = c.repository.CreateItem(userId, productId)
 	if err != nil {
 		logrus.Errorf("CreateItem failed for product %s, user %s Error: %s", productId, userId, err)
 		return err
@@ -41,7 +57,7 @@ func (c Wish) AddItem(userId string, productId string) error {
 	go func(updateFiled chan bool) {
 
 		// get product data from repo
-		product, err := c.wishRepository.Product(productId)
+		product, err := c.repository.Product(productId)
 		if err != nil {
 			logrus.Errorf("Unexpected failure for product %s, user %s Error: %s", productId, userId, err)
 			updateFiled <- true
@@ -53,7 +69,7 @@ func (c Wish) AddItem(userId string, productId string) error {
 			logrus.Infof("Product %s exist in some wish-list", productId)
 
 			// update item with product data
-			err = c.wishRepository.UpdateItem(userId, product)
+			err = c.repository.UpdateItem(userId, product)
 			if err != nil {
 				logrus.Errorf("Unexpected failure for product %s, user %s Error: %s", productId, userId, err)
 				updateFiled <- true
@@ -89,9 +105,9 @@ func (c Wish) AddItem(userId string, productId string) error {
 	return nil
 }
 
-func (c Wish) RemoveItem(userId string, productId string) error {
+func (c controller) RemoveItem(userId string, productId string) error {
 	go func() {
-		err := c.wishRepository.DeleteItem(userId, productId)
+		err := c.repository.DeleteItem(userId, productId)
 		if err != nil {
 			logrus.Errorf("DeleteProduct failed for product %s, user %s Error: %s", productId, userId, err)
 		}
@@ -100,8 +116,8 @@ func (c Wish) RemoveItem(userId string, productId string) error {
 	return nil
 }
 
-func (c Wish) GetList(userId string) (domain.List, error) {
-	list, err := c.wishRepository.List(userId)
+func (c controller) GetList(userId string) (model.List, error) {
+	list, err := c.repository.List(userId)
 	if err != nil {
 		logrus.Errorf("Get List failed for user %s Error: %s", userId, err)
 		return nil, err
@@ -110,7 +126,7 @@ func (c Wish) GetList(userId string) (domain.List, error) {
 	return list, nil
 }
 
-func (c Wish) UpdateProduct(productId string) error {
+func (c controller) UpdateProduct(productId string) error {
 
 	// get product data from external domain
 	product, err := c.productGateway.Product(productId)
@@ -125,7 +141,7 @@ func (c Wish) UpdateProduct(productId string) error {
 		return c.DeactivateProduct(productId)
 	}
 
-	err = c.wishRepository.UpdateProduct(product)
+	err = c.repository.UpdateProduct(product)
 	if err != nil {
 		logrus.Errorf("UpdateProduct failed for product %s. Error: %s", productId, err)
 		return err
@@ -134,8 +150,8 @@ func (c Wish) UpdateProduct(productId string) error {
 	return nil
 }
 
-func (c Wish) DeactivateProduct(productId string) error {
-	err := c.wishRepository.DeactivateProduct(productId)
+func (c controller) DeactivateProduct(productId string) error {
+	err := c.repository.DeactivateProduct(productId)
 	if err != nil {
 		logrus.Errorf("DeactivateProduct failed for product %s. Error: %s", productId, err)
 		return err
@@ -144,8 +160,8 @@ func (c Wish) DeactivateProduct(productId string) error {
 	return nil
 }
 
-func (c Wish) DeleteProduct(productId string) error {
-	err := c.wishRepository.DeleteProduct(productId)
+func (c controller) DeleteProduct(productId string) error {
+	err := c.repository.DeleteProduct(productId)
 	if err != nil {
 		logrus.Errorf("DeleteProduct failed for product %s. Error: %s", productId, err)
 		return err
@@ -154,8 +170,8 @@ func (c Wish) DeleteProduct(productId string) error {
 	return nil
 }
 
-func (c Wish) UpdateProductPrice(productId string, price float32) error {
-	err := c.wishRepository.UpdateProductPrice(productId, price)
+func (c controller) UpdateProductPrice(productId string, price float32) error {
+	err := c.repository.UpdateProductPrice(productId, price)
 	if err != nil {
 		logrus.Errorf("UpdateProductPrice failed for product %s. Error: %s", productId, err)
 		return err

@@ -18,13 +18,17 @@ const (
 	prefetchCount = 5
 )
 
-type Receiver struct {
-	ch      *amqp.Channel
-	handler *Handler
+type Receiver interface {
+	Receive()
 }
 
-func NewReceiver(ch *amqp.Channel, h *Handler) *Receiver {
-	s := &Receiver{
+type receiver struct {
+	ch      *amqp.Channel
+	handler Handler
+}
+
+func NewReceiver(ch *amqp.Channel, h Handler) Receiver {
+	s := receiver{
 		ch:      ch,
 		handler: h,
 	}
@@ -32,7 +36,7 @@ func NewReceiver(ch *amqp.Channel, h *Handler) *Receiver {
 	return s
 }
 
-func (r *Receiver) Receive() {
+func (r receiver) Receive() {
 	if err := r.ch.Qos(
 		prefetchCount,
 		0,
@@ -74,7 +78,7 @@ func (r *Receiver) Receive() {
 
 }
 
-func (r *Receiver) deliveryCh(ex string) <-chan amqp.Delivery {
+func (r *receiver) deliveryCh(ex string) <-chan amqp.Delivery {
 	queue := fmt.Sprintf("%s:%s", ex, queueName)
 
 	_, err := r.ch.QueueDeclare(

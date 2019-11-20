@@ -1,26 +1,21 @@
 package main
 
 import (
-	"context"
 	"fmt"
-	"net/http"
+	"github.com/pejovski/wish-list/pkg/signals"
+	mongo2 "github.com/pejovski/wish-list/repository/mongo"
+	"github.com/pejovski/wish-list/server/api"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
 	_ "github.com/joho/godotenv/autoload"
-	"github.com/sirupsen/logrus"
-	"go.mongodb.org/mongo-driver/mongo"
-
 	"github.com/pejovski/wish-list/controller"
 	"github.com/pejovski/wish-list/factory"
 	"github.com/pejovski/wish-list/gateway/catalog"
 	"github.com/pejovski/wish-list/pkg/logger"
 	amqpReceiver "github.com/pejovski/wish-list/receiver/amqp"
-	"github.com/pejovski/wish-list/repository"
-	httpServer "github.com/pejovski/wish-list/server/http"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -39,10 +34,10 @@ func main() {
 		os.Getenv("MONGO_PORT"),
 	))
 
-	wishRepository := repository.NewWish(mongoClient)
+	wishRepository := mongo2.NewRepository(mongoClient)
 	catalogGateway := catalog.NewGateway(retryablehttp.NewClient(), os.Getenv("CATALOG_API_HOST"))
 
-	wishController := controller.NewWish(wishRepository, catalogGateway)
+	wishController := controller.New(wishRepository, catalogGateway)
 
 	amqpCh := factory.CreateAmqpChannel(fmt.Sprintf(
 		"amqp://%s:%s@%s:%s/%s",
@@ -58,43 +53,14 @@ func main() {
 	// Receive events in goroutines
 	receiver.Receive()
 
-	serverHandler := httpServer.NewHandler(wishController)
-	serverRouter := httpServer.NewRouter(serverHandler)
+	// ToDo mongo shutdown
+	ctx := signals.Context()
 
-	server := factory.CreateHttpServer(serverRouter, fmt.Sprintf(":%s", os.Getenv("APP_PORT")))
-	go func() {
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logrus.Fatalf(err.Error())
-		}
-	}()
-	logrus.Infof("Server started at port: %s", os.Getenv("APP_PORT"))
+	serverAPI := api.NewServer(wishController)
+	serverAPI.Run(ctx)
 
-	gracefulShutdown(server, mongoClient)
-}
-
-func gracefulShutdown(server *http.Server, mongoClient *mongo.Client) {
-	// Create channel for shutdown signals.
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt, os.Kill, syscall.SIGTERM)
-
-	// Receive shutdown signals.
-	<-stop
-
-	ctx, cancel := context.WithTimeout(context.Background(), serverShutdownTimeout)
-	defer cancel()
-
-	if err := server.Shutdown(ctx); err != nil {
-		logrus.Errorf("Server shutdown failed: %s", err)
-	}
-	logrus.Println("Server exited properly")
-
-	ctxMongo, cancelMongo := context.WithTimeout(context.Background(), mongoShutdownTimeout)
-	defer cancelMongo()
-
-	if err := mongoClient.Disconnect(ctxMongo); err != nil {
-		logrus.Errorf("MongoDB shutdown failed: %s", err)
-	}
-	logrus.Println("MongoDB closed properly")
+	logrus.Infof("allowing %s for graceful shutdown to complete", serverShutdownTimeout)
+	<-time.After(serverShutdownTimeout)
 }
 
 func initLogger() {

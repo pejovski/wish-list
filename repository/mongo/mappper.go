@@ -1,10 +1,12 @@
-package repository
+package mongo
 
-import "github.com/pejovski/wish-list/domain"
+import (
+	"github.com/pejovski/wish-list/model"
+)
 
-func mapItemToDomainItem(item *Item) *domain.Item {
-	return &domain.Item{
-		Product: &domain.Product{
+func mapItemToDomainItem(item *Item) *model.Item {
+	return &model.Item{
+		Product: &model.Product{
 			ProductId: item.ProductId,
 			Name:      item.Name,
 			Brand:     item.Brand,

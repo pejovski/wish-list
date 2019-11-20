@@ -1,26 +1,33 @@
-package http
+package api
 
 import (
 	"encoding/json"
 	"github.com/gorilla/mux"
-	"github.com/pejovski/wish-list/domain"
+	"github.com/pejovski/wish-list/controller"
+	myerr "github.com/pejovski/wish-list/error"
 	"github.com/sirupsen/logrus"
 	"net/http"
 )
 
-type Handler struct {
-	controller domain.WishController
+type Handler interface {
+	GetList() http.HandlerFunc
+	AddItem() http.HandlerFunc
+	RemoveItem() http.HandlerFunc
 }
 
-func NewHandler(c domain.WishController) *Handler {
-	s := &Handler{
+type handler struct {
+	controller controller.Controller
+}
+
+func newHandler(c controller.Controller) Handler {
+	s := handler{
 		controller: c,
 	}
 
 	return s
 }
 
-func (h Handler) GetList() http.HandlerFunc {
+func (h handler) GetList() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		params := mux.Vars(r)
@@ -42,7 +49,7 @@ func (h Handler) GetList() http.HandlerFunc {
 	}
 }
 
-func (h Handler) AddItem() http.HandlerFunc {
+func (h handler) AddItem() http.HandlerFunc {
 
 	type request struct {
 		ProductId string `json:"product_id"`
@@ -75,7 +82,7 @@ func (h Handler) AddItem() http.HandlerFunc {
 
 		err = h.controller.AddItem(userId, req.ProductId)
 		if err != nil {
-			if err == domain.ErrItemAlreadyExist {
+			if err == myerr.ErrItemAlreadyExist {
 				http.Error(w, "Item already added", http.StatusMethodNotAllowed)
 				return
 			}
@@ -88,7 +95,7 @@ func (h Handler) AddItem() http.HandlerFunc {
 	}
 }
 
-func (h Handler) RemoveItem() http.HandlerFunc {
+func (h handler) RemoveItem() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		params := mux.Vars(r)
@@ -112,7 +119,7 @@ func (h Handler) RemoveItem() http.HandlerFunc {
 	}
 }
 
-func (h Handler) respond(w http.ResponseWriter, r *http.Request, data interface{}, status int) {
+func (h handler) respond(w http.ResponseWriter, r *http.Request, data interface{}, status int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 
@@ -126,6 +133,6 @@ func (h Handler) respond(w http.ResponseWriter, r *http.Request, data interface{
 	}
 }
 
-func (h Handler) decode(w http.ResponseWriter, r *http.Request, v interface{}) error {
+func (h handler) decode(w http.ResponseWriter, r *http.Request, v interface{}) error {
 	return json.NewDecoder(r.Body).Decode(v)
 }

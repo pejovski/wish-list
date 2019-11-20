@@ -1,9 +1,11 @@
 package catalog
 
-import "github.com/pejovski/wish-list/domain"
+import (
+	"github.com/pejovski/wish-list/model"
+)
 
-func (g Gateway) mapProductToDomainProduct(p *Product) *domain.Product {
-	return &domain.Product{
+func (g gateway) mapProductToDomainProduct(p *Product) *model.Product {
+	return &model.Product{
 		ProductId: p.Id,
 		Name:      p.Name,
 		Brand:     p.Brand,

@@ -2,25 +2,31 @@ package amqp
 
 import (
 	"encoding/json"
-	"github.com/pejovski/wish-list/domain"
+	"github.com/pejovski/wish-list/controller"
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"time"
 )
 
-type Handler struct {
-	controller domain.WishController
+type Handler interface {
+	ProductUpdated(d *amqp.Delivery)
+	ProductDeleted(d *amqp.Delivery)
+	ProductPriceUpdated(d *amqp.Delivery)
 }
 
-func NewHandler(c domain.WishController) *Handler {
-	s := &Handler{
+type handler struct {
+	controller controller.Controller
+}
+
+func NewHandler(c controller.Controller) Handler {
+	s := handler{
 		controller: c,
 	}
 
 	return s
 }
 
-func (h Handler) ProductUpdated(d *amqp.Delivery) {
+func (h handler) ProductUpdated(d *amqp.Delivery) {
 
 	msg := struct {
 		Id string `json:"id"`
@@ -44,7 +50,7 @@ func (h Handler) ProductUpdated(d *amqp.Delivery) {
 	h.ack(d)
 }
 
-func (h Handler) ProductDeleted(d *amqp.Delivery) {
+func (h handler) ProductDeleted(d *amqp.Delivery) {
 	msg := struct {
 		Id string `json:"id"`
 	}{}
@@ -67,7 +73,7 @@ func (h Handler) ProductDeleted(d *amqp.Delivery) {
 	h.ack(d)
 }
 
-func (h Handler) ProductPriceUpdated(d *amqp.Delivery) {
+func (h handler) ProductPriceUpdated(d *amqp.Delivery) {
 	msg := struct {
 		Id    string  `json:"id"`
 		Price float32 `json:"price"`
@@ -91,14 +97,14 @@ func (h Handler) ProductPriceUpdated(d *amqp.Delivery) {
 	h.ack(d)
 }
 
-func (h Handler) reject(d *amqp.Delivery) {
+func (h handler) reject(d *amqp.Delivery) {
 	time.Sleep(5 * time.Second)
 	if err := d.Reject(true); err != nil {
 		logrus.Errorln("Failed to reject msg", err)
 	}
 }
 
-func (h Handler) ack(d *amqp.Delivery) {
+func (h handler) ack(d *amqp.Delivery) {
 	if err := d.Ack(false); err != nil {
 		logrus.Errorln("Failed to ack msg", err)
 	}
